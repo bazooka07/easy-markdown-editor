@@ -10,6 +10,7 @@ require('codemirror/addon/selection/mark-selection.js');
 require('codemirror/addon/search/searchcursor.js');
 require('codemirror/mode/gfm/gfm.js');
 require('codemirror/mode/xml/xml.js');
+// https://github.com/titoBouzout/Dictionaries
 var CodeMirrorSpellChecker = require('codemirror-spell-checker');
 var marked = require('marked');
 
@@ -698,7 +699,12 @@ function drawImage(editor) {
     var stat = getState(cm);
     var options = editor.options;
     var url = 'https://';
-    if (options.promptURLs) {
+    if(options.imageCallback) {
+		url = options.imageCallback();
+		if(!url) {
+			return false;
+		}
+	} else if (options.promptURLs) {
         url = prompt(options.promptTexts.image, 'https://');
         if (!url) {
             return false;
@@ -1429,8 +1435,8 @@ var toolbarBuiltInButtons = {
 
 var insertTexts = {
     link: ['[', '](#url#)'],
-    image: ['![](', '#url#)'],
-    uploadedImage: ['![](#url#)', ''],
+    image: ['![', '](#url#)'],
+    uploadedImage: ['![', '](#url#)'],
     // uploadedImage: ['![](#url#)\n', ''], // TODO: New line insertion doesn't work here.
     table: ['', '\n\n| Column 1 | Column 2 | Column 3 |\n| -------- | -------- | -------- |\n| Text     | Text     | Text     |\n\n'],
     horizontalRule: ['', '\n\n-----\n\n'],
@@ -1514,7 +1520,7 @@ function EasyMDE(options) {
         this.element = options.element;
     } else if (options.element === null) {
         // This means that the element option was specified, but no element was found
-        console.log('EasyMDE: Error. No element was found.');
+        console.error('EasyMDE: Error. No element was found.');
         return;
     }
 
@@ -1593,7 +1599,7 @@ function EasyMDE(options) {
     // Import-image default configuration
     options.uploadImage = options.uploadImage || false;
     options.imageMaxSize = options.imageMaxSize || 2097152; // 1024 * 1024 * 2
-    options.imageAccept = options.imageAccept || 'image/png, image/jpeg';
+    options.imageAccept = options.imageAccept || 'image/png, image/jpeg, image/gif, image/svg+xml';
     options.imageTexts = extend({}, imageTexts, options.imageTexts || {});
     options.errorMessages = extend({}, errorMessages, options.errorMessages || {});
 
