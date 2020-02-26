@@ -11,9 +11,7 @@ require('codemirror/addon/search/searchcursor.js');
 require('codemirror/mode/gfm/gfm.js');
 require('codemirror/mode/xml/xml.js');
 // https://github.com/titoBouzout/Dictionaries
-// var CodeMirrorSpellChecker = require('codemirror-spell-checker');
-var CodeMirrorSpellChecker = require('./spell-checker');
-
+var CodeMirrorSpellChecker = require('codemirror-spell-checker-extended');
 var marked = require('marked');
 
 // Some variables
@@ -1479,13 +1477,6 @@ var errorMessages = {
     importError: 'Something went wrong when uploading the image #image_name#.',
 };
 
-// var url = document.scripts[document.scripts.length - 1].src.replace(/[^/]*\.js$/, '');
-var url = document.scripts[document.scripts.length - 1].src.replace(/[^/]*\.js$/, '');
-if(url.indexOf(window.location.origin) == 0) {
-	url = url.substr(window.location.origin.length);
-}
-console.log(url);
-
 /**
  * Interface of EasyMDE.
  */
@@ -1841,11 +1832,12 @@ EasyMDE.prototype.render = function (el) {
         backdrop.name = 'gfm';
         backdrop.gitHubSpice = false;
 
-		var lang = (typeof options.lang === 'string') ? options.lang : navigator.languages[0];
-        CodeMirrorSpellChecker({
+ 		var locale = (options.spellCheckLang != undefined) ? options.spellCheckLang : 'en_US';
+		CodeMirrorSpellChecker({
             codeMirrorInstance: CodeMirror,
-            url: (typeof options.spellCheckUrl === 'string') ? options.spellCheckUrl : url + lang,
-            lang: lang,
+            aff: (options.aff != undefined) ? options.aff : url + locale + '.aff',
+            dic: (options.dic != undefined) ? options.dic : url + locale + '.dic',
+            locale: locale,
         });
     } else {
         mode = options.parsingConfig;

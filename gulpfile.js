@@ -40,13 +40,12 @@ function styles() {
     var css_files = [
         './node_modules/codemirror/lib/codemirror.css',
         './src/css/*.css',
-        './node_modules/codemirror-spell-checker/src/css/spell-checker.css',
     ];
 
     return gulp.src(css_files)
         .pipe(concat('easymde.css'))
-        .pipe(cleanCSS())
-        .pipe(rename('easymde.min.css'))
+        // .pipe(cleanCSS())
+        // .pipe(rename('easymde.min.css'))
         .pipe(buffer())
         .pipe(header(banner, {pkg: pkg}))
         .pipe(gulp.dest('./dist/'));

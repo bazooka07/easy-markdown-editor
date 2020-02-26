@@ -20,8 +20,8 @@
     "author": "Jeroen Akkerman",
     "dependencies": {
         "codemirror": "^5.51.0",
-        "codemirror-spell-checker": "1.1.2",
-        "marked": "^0.8.0"
+        "marked": "^0.8.0",
+        "typo-js": "^1.1.0"
     },
     "devDependencies": {
         "@types/codemirror": "0.0.85",
