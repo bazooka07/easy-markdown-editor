@@ -27,11 +27,12 @@ function lint() {
         .pipe(eslint.failAfterError());
 }
 
+// comment ".pipe(terser())" to avoid minifycation (debug)
 function scripts() {
     return browserify({entries: './src/js/easymde.js', standalone: 'EasyMDE'}).bundle()
         .pipe(source('easymde.min.js'))
         .pipe(buffer())
-//        .pipe(terser())
+        .pipe(terser())
         .pipe(header(banner, {pkg: pkg}))
         .pipe(gulp.dest('./dist/'));
 }

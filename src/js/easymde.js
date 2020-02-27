@@ -3,13 +3,13 @@
 var CodeMirror = require('codemirror');
 require('codemirror/addon/edit/continuelist.js');
 require('./codemirror/tablist');
-require('codemirror/mode/markdown/markdown.js');
-require('codemirror/addon/mode/overlay.js');
+// require('codemirror/mode/markdown/markdown.js');
+// require('codemirror/addon/mode/overlay.js');
 require('codemirror/addon/display/placeholder.js');
 require('codemirror/addon/selection/mark-selection.js');
 require('codemirror/addon/search/searchcursor.js');
 require('codemirror/mode/gfm/gfm.js');
-require('codemirror/mode/xml/xml.js');
+// require('codemirror/mode/xml/xml.js');
 
 // https://github.com/titoBouzout/Dictionaries
 // var CodeMirrorSpellChecker = require('codemirror-spell-checker');
