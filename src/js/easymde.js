@@ -1,8 +1,8 @@
 'use strict';
+
 var CodeMirror = require('codemirror');
 require('codemirror/addon/edit/continuelist.js');
 require('./codemirror/tablist');
-require('codemirror/addon/display/fullscreen.js');
 require('codemirror/mode/markdown/markdown.js');
 require('codemirror/addon/mode/overlay.js');
 require('codemirror/addon/display/placeholder.js');
@@ -10,6 +10,7 @@ require('codemirror/addon/selection/mark-selection.js');
 require('codemirror/addon/search/searchcursor.js');
 require('codemirror/mode/gfm/gfm.js');
 require('codemirror/mode/xml/xml.js');
+
 // https://github.com/titoBouzout/Dictionaries
 // var CodeMirrorSpellChecker = require('codemirror-spell-checker');
 var CodeMirrorSpellChecker = require('./spell-checker');
@@ -64,7 +65,7 @@ var shortcuts = {
 };
 
 var getBindingName = function (f) {
-    for (var key in bindings) {
+    for(var key in bindings) {
         if (bindings[key] === f) {
             return key;
         }
@@ -91,7 +92,7 @@ function addAnchorTargetBlank(htmlText) {
         // With only one capture group in the RegExp, we can safely take the first index from the match.
         var linkString = match[0];
 
-        if (linkString.indexOf('target=') === -1) {
+        if (linkString.indexOf('target=') < 0) {
             var fixedLinkString = linkString.replace(/>$/, ' target="_blank">');
             htmlText = htmlText.replace(linkString, fixedLinkString);
         }
@@ -104,12 +105,7 @@ function addAnchorTargetBlank(htmlText) {
  * Fix shortcut. Mac use Command, others use Ctrl.
  */
 function fixShortcut(name) {
-    if (isMac) {
-        name = name.replace('Ctrl', 'Cmd');
-    } else {
-        name = name.replace('Cmd', 'Ctrl');
-    }
-    return name;
+    return (isMac) ? name.replace('Ctrl', 'Cmd') : name.replace('Cmd', 'Ctrl');
 }
 
 
@@ -145,29 +141,13 @@ function createToolbarButton(options, enableTooltips, shortcuts) {
         el.classList.add('no-mobile');
     }
 
+    // https://fontawesome.com/how-to-use/on-the-web/advanced/svg-sprites
+
     // Provide backwards compatibility with simple-markdown-editor by adding custom classes to the button.
     var classNameParts = options.className.split(' ');
-    var iconClasses = [];
-    for (var classNameIndex = 0; classNameIndex < classNameParts.length; classNameIndex++) {
-        var classNamePart = classNameParts[classNameIndex];
-        // Split icon classes from the button.
-        // Regex will detect "fa", "fas", "fa-something" and "fa-some-icon-1", but not "fanfare".
-        if (classNamePart.match(/^fa([srlb]|(-[\w-]*)|$)/)) {
-            iconClasses.push(classNamePart);
-        } else {
-            el.classList.add(classNamePart);
-        }
-    }
 
     el.tabIndex = -1;
-
-    // Create icon element and append as a child to the button
-    var icon = document.createElement('i');
-    for (var iconClassIndex = 0; iconClassIndex < iconClasses.length; iconClassIndex++) {
-        var iconClass = iconClasses[iconClassIndex];
-        icon.classList.add(iconClass);
-    }
-    el.appendChild(icon);
+    el.innerHTML = '<svg preserveAspectRatio="xMidYMax"><use xlink:href="' + url + 'sprites.svg#' + classNameParts[0].replace(/^fa-/, '') + '"></use></svg>';
 
     return el;
 }
@@ -175,16 +155,14 @@ function createToolbarButton(options, enableTooltips, shortcuts) {
 function createSep() {
     var el = document.createElement('i');
     el.className = 'separator';
-    el.innerHTML = '|';
+    el.textContent = '|';
     return el;
 }
 
 function createTooltip(title, action, shortcuts) {
-    var actionName;
     var tooltip = title;
-
     if (action) {
-        actionName = getBindingName(action);
+        var actionName = getBindingName(action);
         if (shortcuts[actionName]) {
             tooltip += ' (' + fixShortcut(shortcuts[actionName]) + ')';
         }
@@ -199,47 +177,44 @@ function createTooltip(title, action, shortcuts) {
 function getState(cm, pos) {
     pos = pos || cm.getCursor('start');
     var stat = cm.getTokenAt(pos);
-    if (!stat.type) return {};
+    if(!stat.type) return {};
 
     var types = stat.type.split(' ');
-
-    var ret = {},
-        data, text;
-    for (var i = 0; i < types.length; i++) {
-        data = types[i];
-        if (data === 'strong') {
-            ret.bold = true;
-        } else if (data === 'variable-2') {
-            text = cm.getLine(pos.line);
-            if (/^\s*\d+\.\s/.test(text)) {
-                ret['ordered-list'] = true;
-            } else {
-                ret['unordered-list'] = true;
-            }
-        } else if (data === 'atom') {
-            ret.quote = true;
-        } else if (data === 'em') {
-            ret.italic = true;
-        } else if (data === 'quote') {
-            ret.quote = true;
-        } else if (data === 'strikethrough') {
-            ret.strikethrough = true;
-        } else if (data === 'comment') {
-            ret.code = true;
-        } else if (data === 'link') {
-            ret.link = true;
-        } else if (data === 'tag') {
-            ret.image = true;
-        } else if (data.match(/^header(-[1-6])?$/)) {
-            ret[data.replace('header', 'heading')] = true;
+    var ret = {};
+    types.forEach(function(data) {
+        switch(data) {
+            case 'strong': ret.bold = true; break;
+            case 'variable-2':
+                var text = cm.getLine(pos.line);
+                if (/^\s*\d+\.\s/.test(text)) {
+                    ret['ordered-list'] = true;
+                } else {
+                    ret['unordered-list'] = true;
+                }
+                break;
+            case 'atom': ret.quote = true; break;
+            case 'em': ret.italic = true; break;
+            case 'quote': ret.quote = true; break;
+            case 'strikethrough': ret.strikethrough = true; break;
+            case 'comment': ret.code = true; break;
+            case 'image': ret.image = true; break;
+            case 'link':
+                if(types.indexOf('image') < 0) {
+                    ret.link = true;
+                }
+                break;
+            default:
+                if (data.match(/^header(-[1-6])?$/)) {
+                    ret[data.replace('header', 'heading')] = true;
+                }
         }
-    }
+    });
     return ret;
 }
 
 
 // Saved overflow setting
-var saved_overflow = '';
+// var saved_overflow = '';
 
 /**
  * Toggle full screen of the editor.
@@ -247,47 +222,45 @@ var saved_overflow = '';
 function toggleFullScreen(editor) {
     // Set fullscreen
     var cm = editor.codemirror;
-    cm.setOption('fullScreen', !cm.getOption('fullScreen'));
-
-
-    // Prevent scrolling on body during fullscreen active
-    if (cm.getOption('fullScreen')) {
-        saved_overflow = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
-    } else {
-        document.body.style.overflow = saved_overflow;
-    }
-
-
-    // Update toolbar class
     var wrap = cm.getWrapperElement();
+    var toolbarButton = (editor.toolbarElements && editor.toolbarElements.fullscreen) ? editor.toolbarElements.fullscreen : null;
+    var theClass = 'CodeMirror-fullscreen';
 
-    if (!/fullscreen/.test(wrap.previousSibling.className)) {
-        wrap.previousSibling.className += ' fullscreen';
-    } else {
-        wrap.previousSibling.className = wrap.previousSibling.className.replace(/\s*fullscreen\b/, '');
-    }
+    editor.fullScreen = !editor.fullScreen;
 
-
-    // Update toolbar button
-    if (editor.toolbarElements && editor.toolbarElements.fullscreen) {
-        var toolbarButton = editor.toolbarElements.fullscreen;
-
-        if (!/active/.test(toolbarButton.className)) {
-            toolbarButton.className += ' active';
-        } else {
-            toolbarButton.className = toolbarButton.className.replace(/\s*active\s*/g, '');
+    if(editor.fullScreen) {
+        document.body.classList.add(theClass);
+        if(toolbarButton != null) {
+            toolbarButton.classList.add('active');
         }
+        cm.state.fullScreenRestore = {
+            width: wrap.style.width,
+            height: wrap.style.height,
+            scrollLeft: window.pageXOffset,
+            scrollTop: window.pageYOffset,
+        };
+        wrap.style.width = '';
+        wrap.style.height = 'auto';
+        document.documentElement.style.overflow = 'hidden';
+    } else {
+        document.body.classList.remove(theClass);
+        if(toolbarButton != null) {
+            toolbarButton.classList.remove('active');
+        }
+        document.documentElement.style.overflow = '';
+        var info = cm.state.fullScreenRestore;
+        wrap.style.width = info.width;
+        wrap.style.height = info.height;
+        window.scrollTo(info.scrollLeft, info.scrollTop);
     }
-
+    cm.refresh();
 
     // Hide side by side if needed
-    var sidebyside = cm.getWrapperElement().nextSibling;
-    if (/editor-preview-active-side/.test(sidebyside.className))
+    if (wrap.nextSibling.classList.contains('editor-preview-active-side'))
         toggleSideBySide(editor);
 
     if (editor.options.onToggleFullScreen) {
-        editor.options.onToggleFullScreen(cm.getOption('fullScreen') || false);
+        editor.options.onToggleFullScreen(editor.fullScreen);
     }
 }
 
@@ -605,48 +578,42 @@ function toggleCodeBlock(editor) {
  * Action for toggling blockquote.
  */
 function toggleBlockquote(editor) {
-    var cm = editor.codemirror;
-    _toggleLine(cm, 'quote');
+    _toggleLine(editor.codemirror, 'quote');
 }
 
 /**
  * Action for toggling heading size: normal -> h1 -> h2 -> h3 -> h4 -> h5 -> h6 -> normal
  */
 function toggleHeadingSmaller(editor) {
-    var cm = editor.codemirror;
-    _toggleHeading(cm, 'smaller');
+    _toggleHeading(editor.codemirror, 'smaller');
 }
 
 /**
  * Action for toggling heading size: normal -> h6 -> h5 -> h4 -> h3 -> h2 -> h1 -> normal
  */
 function toggleHeadingBigger(editor) {
-    var cm = editor.codemirror;
-    _toggleHeading(cm, 'bigger');
+    _toggleHeading(editor.codemirror, 'bigger');
 }
 
 /**
  * Action for toggling heading size 1
  */
 function toggleHeading1(editor) {
-    var cm = editor.codemirror;
-    _toggleHeading(cm, undefined, 1);
+    _toggleHeading(editor.codemirror, undefined, 1);
 }
 
 /**
  * Action for toggling heading size 2
  */
 function toggleHeading2(editor) {
-    var cm = editor.codemirror;
-    _toggleHeading(cm, undefined, 2);
+    _toggleHeading(editor.codemirror, undefined, 2);
 }
 
 /**
  * Action for toggling heading size 3
  */
 function toggleHeading3(editor) {
-    var cm = editor.codemirror;
-    _toggleHeading(cm, undefined, 3);
+    _toggleHeading(editor.codemirror, undefined, 3);
 }
 
 
@@ -654,8 +621,7 @@ function toggleHeading3(editor) {
  * Action for toggling ul.
  */
 function toggleUnorderedList(editor) {
-    var cm = editor.codemirror;
-    _toggleLine(cm, 'unordered-list');
+    _toggleLine(editor.codemirror, 'unordered-list');
 }
 
 
@@ -663,16 +629,14 @@ function toggleUnorderedList(editor) {
  * Action for toggling ol.
  */
 function toggleOrderedList(editor) {
-    var cm = editor.codemirror;
-    _toggleLine(cm, 'ordered-list');
+    _toggleLine(editor.codemirror, 'ordered-list');
 }
 
 /**
  * Action for clean block (remove headline, list, blockquote code, markers)
  */
 function cleanBlock(editor) {
-    var cm = editor.codemirror;
-    _cleanBlock(cm);
+    _cleanBlock(editor.codemirror);
 }
 
 /**
@@ -701,11 +665,11 @@ function drawImage(editor) {
     var options = editor.options;
     var url = 'https://';
     if(options.imageCallback) {
-		url = options.imageCallback();
-		if(!url) {
-			return false;
-		}
-	} else if (options.promptURLs) {
+        url = options.imageCallback();
+        if(!url) {
+            return false;
+        }
+    } else if (options.promptURLs) {
         url = prompt(options.promptTexts.image, 'https://');
         if (!url) {
             return false;
@@ -791,36 +755,34 @@ function toggleSideBySide(editor) {
     var preview = wrapper.nextSibling;
     var toolbarButton = editor.toolbarElements && editor.toolbarElements['side-by-side'];
     var useSideBySideListener = false;
-    if (/editor-preview-active-side/.test(preview.className)) {
-        preview.className = preview.className.replace(
-            /\s*editor-preview-active-side\s*/g, ''
-        );
-        if (toolbarButton) toolbarButton.className = toolbarButton.className.replace(/\s*active\s*/g, '');
-        wrapper.className = wrapper.className.replace(/\s*CodeMirror-sided\s*/g, ' ');
+    var className1 = 'editor-preview-active-side';
+    if (preview.classList.contains(className1)) {
+        preview.classList.remove(className1);
+        if (toolbarButton) toolbarButton.classList.remove('active');
+        wrapper.classList.remove('CodeMirror-sided');
     } else {
         // When the preview button is clicked for the first time,
         // give some time for the transition from editor.css to fire and the view to slide from right to left,
         // instead of just appearing.
         setTimeout(function () {
-            if (!cm.getOption('fullScreen'))
+            if (! document.body.classList.contains('CodeMirror-fullscreen')) {
                 toggleFullScreen(editor);
-            preview.className += ' editor-preview-active-side';
+            }
+            preview.classList.add(className1);
         }, 1);
-        if (toolbarButton) toolbarButton.className += ' active';
-        wrapper.className += ' CodeMirror-sided';
+        if (toolbarButton) toolbarButton.classList.add('active');
+        wrapper.classList.add('CodeMirror-sided');
         useSideBySideListener = true;
     }
 
     // Hide normal preview if active
     var previewNormal = wrapper.lastChild;
-    if (/editor-preview-active/.test(previewNormal.className)) {
-        previewNormal.className = previewNormal.className.replace(
-            /\s*editor-preview-active\s*/g, ''
-        );
+    if (previewNormal.classList.contains('editor-preview-active')) {
+        previewNormal.classList.remove('editor-preview-active');
         var toolbar = editor.toolbarElements.preview;
         var toolbar_div = wrapper.previousSibling;
-        toolbar.className = toolbar.className.replace(/\s*active\s*/g, '');
-        toolbar_div.className = toolbar_div.className.replace(/\s*disabled-for-preview*/g, '');
+        toolbar.classList.remove('active');
+        toolbar_div.classList.remove('disabled-for-preview');
     }
 
     var sideBySideRenderingFunction = function () {
@@ -848,7 +810,6 @@ function toggleSideBySide(editor) {
     cm.refresh();
 }
 
-
 /**
  * Preview action.
  */
@@ -867,17 +828,17 @@ function togglePreview(editor) {
 
             if (Array.isArray(editor.options.previewClass)) {
                 for (var i = 0; i < editor.options.previewClass.length; i++) {
-                    preview.className += (' ' + editor.options.previewClass[i]);
+                    preview.classList.add(editor.options.previewClass[i]);
                 }
 
             } else if (typeof editor.options.previewClass === 'string') {
-                preview.className += (' ' + editor.options.previewClass);
+                preview.classList.add(editor.options.previewClass);
             }
         }
 
         wrapper.appendChild(preview);
     }
-    if (/editor-preview-active/.test(preview.className)) {
+    if (preview.classList.contains('editor-preview-active')) {
         preview.className = preview.className.replace(
             /\s*editor-preview-active\s*/g, ''
         );
@@ -1250,58 +1211,58 @@ var toolbarBuiltInButtons = {
     'bold': {
         name: 'bold',
         action: toggleBold,
-        className: 'fa fa-bold',
+        className: 'fa-bold',
         title: 'Bold',
         default: true,
     },
     'italic': {
         name: 'italic',
         action: toggleItalic,
-        className: 'fa fa-italic',
+        className: 'fa-italic',
         title: 'Italic',
         default: true,
     },
     'strikethrough': {
         name: 'strikethrough',
         action: toggleStrikethrough,
-        className: 'fa fa-strikethrough',
+        className: 'fa-strikethrough',
         title: 'Strikethrough',
     },
     'heading': {
         name: 'heading',
         action: toggleHeadingSmaller,
-        className: 'fa fa-header fa-heading',
+        className: 'fa-heading fa-header',
         title: 'Heading',
         default: true,
     },
     'heading-smaller': {
         name: 'heading-smaller',
         action: toggleHeadingSmaller,
-        className: 'fa fa-header fa-heading header-smaller',
+        className: 'fa-heading fa-header header-smaller',
         title: 'Smaller Heading',
     },
     'heading-bigger': {
         name: 'heading-bigger',
         action: toggleHeadingBigger,
-        className: 'fa fa-header fa-heading header-bigger',
+        className: 'fa-heading fa-header header-bigger',
         title: 'Bigger Heading',
     },
     'heading-1': {
         name: 'heading-1',
         action: toggleHeading1,
-        className: 'fa fa-header fa-heading header-1',
+        className: 'fa-heading fa-header header-1',
         title: 'Big Heading',
     },
     'heading-2': {
         name: 'heading-2',
         action: toggleHeading2,
-        className: 'fa fa-header fa-heading header-2',
+        className: 'fa-heading fa-header header-2',
         title: 'Medium Heading',
     },
     'heading-3': {
         name: 'heading-3',
         action: toggleHeading3,
-        className: 'fa fa-header fa-heading header-3',
+        className: 'fa-heading fa-header header-3',
         title: 'Small Heading',
     },
     'separator-1': {
@@ -1310,34 +1271,34 @@ var toolbarBuiltInButtons = {
     'code': {
         name: 'code',
         action: toggleCodeBlock,
-        className: 'fa fa-code',
+        className: 'fa-code',
         title: 'Code',
     },
     'quote': {
         name: 'quote',
         action: toggleBlockquote,
-        className: 'fa fa-quote-left',
+        className: 'fa-quote-left',
         title: 'Quote',
         default: true,
     },
     'unordered-list': {
         name: 'unordered-list',
         action: toggleUnorderedList,
-        className: 'fa fa-list-ul',
+        className: 'fa-list-ul',
         title: 'Generic List',
         default: true,
     },
     'ordered-list': {
         name: 'ordered-list',
         action: toggleOrderedList,
-        className: 'fa fa-list-ol',
+        className: 'fa-list-ol',
         title: 'Numbered List',
         default: true,
     },
     'clean-block': {
         name: 'clean-block',
         action: cleanBlock,
-        className: 'fa fa-eraser',
+        className: 'fa-eraser',
         title: 'Clean block',
     },
     'separator-2': {
@@ -1346,33 +1307,33 @@ var toolbarBuiltInButtons = {
     'link': {
         name: 'link',
         action: drawLink,
-        className: 'fa fa-link',
+        className: 'fa-link',
         title: 'Create Link',
         default: true,
     },
     'image': {
         name: 'image',
         action: drawImage,
-        className: 'fa fa-image',
+        className: 'fa-image',
         title: 'Insert Image',
         default: true,
     },
     'upload-image': {
         name: 'upload-image',
         action: drawUploadedImage,
-        className: 'fa fa-image',
+        className: 'fa-image',
         title: 'Import an image',
     },
     'table': {
         name: 'table',
         action: drawTable,
-        className: 'fa fa-table',
+        className: 'fa-table',
         title: 'Insert Table',
     },
     'horizontal-rule': {
         name: 'horizontal-rule',
         action: drawHorizontalRule,
-        className: 'fa fa-minus',
+        className: 'fa-minus',
         title: 'Insert Horizontal Line',
     },
     'separator-3': {
@@ -1381,7 +1342,7 @@ var toolbarBuiltInButtons = {
     'preview': {
         name: 'preview',
         action: togglePreview,
-        className: 'fa fa-eye',
+        className: 'fa-eye',
         noDisable: true,
         title: 'Toggle Preview',
         default: true,
@@ -1389,7 +1350,7 @@ var toolbarBuiltInButtons = {
     'side-by-side': {
         name: 'side-by-side',
         action: toggleSideBySide,
-        className: 'fa fa-columns',
+        className: 'fa-columns',
         noDisable: true,
         noMobile: true,
         title: 'Toggle Side by Side',
@@ -1398,7 +1359,7 @@ var toolbarBuiltInButtons = {
     'fullscreen': {
         name: 'fullscreen',
         action: toggleFullScreen,
-        className: 'fa fa-arrows-alt',
+        className: 'fa-arrows-alt',
         noDisable: true,
         noMobile: true,
         title: 'Toggle Fullscreen',
@@ -1410,7 +1371,7 @@ var toolbarBuiltInButtons = {
     'guide': {
         name: 'guide',
         action: 'https://www.markdownguide.org/basic-syntax/',
-        className: 'fa fa-question-circle',
+        className: 'fa-question-circle',
         noDisable: true,
         title: 'Markdown Guide',
         default: true,
@@ -1421,14 +1382,14 @@ var toolbarBuiltInButtons = {
     'undo': {
         name: 'undo',
         action: undo,
-        className: 'fa fa-undo',
+        className: 'fa-undo',
         noDisable: true,
         title: 'Undo',
     },
     'redo': {
         name: 'redo',
         action: redo,
-        className: 'fa fa-repeat fa-redo',
+        className: 'fa-redo fa-repeat',
         noDisable: true,
         title: 'Redo',
     },
@@ -1437,8 +1398,8 @@ var toolbarBuiltInButtons = {
 var insertTexts = {
     link: ['[', '](#url#)'],
     image: ['![', '](#url#)'],
-    uploadedImage: ['![', '](#url#)'],
     // uploadedImage: ['![](#url#)\n', ''], // TODO: New line insertion doesn't work here.
+    uploadedImage: ['![', '](#url#)'],
     table: ['', '\n\n| Column 1 | Column 2 | Column 3 |\n| -------- | -------- | -------- |\n| Text     | Text     | Text     |\n\n'],
     horizontalRule: ['', '\n\n-----\n\n'],
 };
@@ -1482,9 +1443,9 @@ var errorMessages = {
 // var url = document.scripts[document.scripts.length - 1].src.replace(/[^/]*\.js$/, '');
 var url = document.scripts[document.scripts.length - 1].src.replace(/[^/]*\.js$/, '');
 if(url.indexOf(window.location.origin) == 0) {
-	url = url.substr(window.location.origin.length);
+    url = url.substr(window.location.origin.length);
 }
-console.log(url);
+// console.log(url);
 
 /**
  * Interface of EasyMDE.
@@ -1495,33 +1456,6 @@ function EasyMDE(options) {
 
     // Used later to refer to it"s parent
     options.parent = this;
-
-    // Check if Font Awesome needs to be auto downloaded
-    var autoDownloadFA = true;
-
-    if (options.autoDownloadFontAwesome === false) {
-        autoDownloadFA = false;
-    }
-
-    if (options.autoDownloadFontAwesome !== true) {
-        var styleSheets = document.styleSheets;
-        for (var i = 0; i < styleSheets.length; i++) {
-            if (!styleSheets[i].href)
-                continue;
-
-            if (styleSheets[i].href.indexOf('//maxcdn.bootstrapcdn.com/font-awesome/') > -1) {
-                autoDownloadFA = false;
-            }
-        }
-    }
-
-    if (autoDownloadFA) {
-        var link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css';
-        document.getElementsByTagName('head')[0].appendChild(link);
-    }
-
 
     // Find the textarea to use
     if (options.element) {
@@ -1841,7 +1775,7 @@ EasyMDE.prototype.render = function (el) {
         backdrop.name = 'gfm';
         backdrop.gitHubSpice = false;
 
-		var lang = (typeof options.lang === 'string') ? options.lang : navigator.languages[0];
+        var lang = (typeof options.lang === 'string') ? options.lang : navigator.languages[0];
         CodeMirrorSpellChecker({
             codeMirrorInstance: CodeMirror,
             url: (typeof options.spellCheckUrl === 'string') ? options.spellCheckUrl : url + lang,
@@ -1867,7 +1801,7 @@ EasyMDE.prototype.render = function (el) {
         tabSize: (options.tabSize != undefined) ? options.tabSize : 2,
         indentUnit: (options.tabSize != undefined) ? options.tabSize : 2,
         indentWithTabs: (options.indentWithTabs === false) ? false : true,
-        lineNumbers: false,
+        lineNumbers: true,
         autofocus: (options.autofocus === true) ? true : false,
         extraKeys: keyMaps,
         lineWrapping: (options.lineWrapping === false) ? false : true,
@@ -1880,6 +1814,8 @@ EasyMDE.prototype.render = function (el) {
     });
 
     this.codemirror.getScrollerElement().style.minHeight = options.minHeight;
+
+    this.fullscreen = false;
 
     if (options.forceSync === true) {
         var cm = this.codemirror;
@@ -2264,7 +2200,6 @@ EasyMDE.prototype.createToolbar = function (items) {
                 continue;
         }
 
-
         // Create the icon and append to the toolbar
         (function (item) {
             var el;
@@ -2318,9 +2253,9 @@ EasyMDE.prototype.createToolbar = function (items) {
             (function (key) {
                 var el = toolbarData[key];
                 if (stat[key]) {
-                    el.className += ' active';
+                    el.classList.add('active');
                 } else if (key != 'fullscreen' && key != 'side-by-side') {
-                    el.className = el.className.replace(/\s*active\s*/g, '');
+                    el.classList.remove('active');
                 }
             })(key);
         }
@@ -2334,117 +2269,106 @@ EasyMDE.prototype.createToolbar = function (items) {
 EasyMDE.prototype.createStatusbar = function (status) {
     // Initialize
     status = status || this.options.status;
-    var options = this.options;
-    var cm = this.codemirror;
-
     // Make sure the status variable is valid
     if (!status || status.length === 0) {
         return;
     }
 
-    // Set up the built-in items
-    var items = [];
-    var i, onUpdate, defaultValue;
-
-    for (i = 0; i < status.length; i++) {
-        // Reset some values
-        onUpdate = undefined;
-        defaultValue = undefined;
-
-
-        // Handle if custom or not
-        if (typeof status[i] === 'object') {
-            items.push({
-                className: status[i].className,
-                defaultValue: status[i].defaultValue,
-                onUpdate: status[i].onUpdate,
-            });
-        } else {
-            var name = status[i];
-
-            if (name === 'words') {
-                defaultValue = function (el) {
-                    el.innerHTML = wordCount(cm.getValue());
-                };
-                onUpdate = function (el) {
-                    el.innerHTML = wordCount(cm.getValue());
-                };
-            } else if (name === 'lines') {
-                defaultValue = function (el) {
-                    el.innerHTML = cm.lineCount();
-                };
-                onUpdate = function (el) {
-                    el.innerHTML = cm.lineCount();
-                };
-            } else if (name === 'cursor') {
-                defaultValue = function (el) {
-                    el.innerHTML = '0:0';
-                };
-                onUpdate = function (el) {
-                    var pos = cm.getCursor();
-                    el.innerHTML = pos.line + ':' + pos.ch;
-                };
-            } else if (name === 'autosave') {
-                defaultValue = function (el) {
-                    if (options.autosave != undefined && options.autosave.enabled === true) {
-                        el.setAttribute('id', 'autosaved');
-                    }
-                };
-            } else if (name === 'upload-image') {
-                defaultValue = function (el) {
-                    el.innerHTML = options.imageTexts.sbInit;
-                };
-            }
-
-            items.push({
-                className: name,
-                defaultValue: defaultValue,
-                onUpdate: onUpdate,
-            });
-        }
-    }
-
+    var options = this.options;
+    var cm = this.codemirror;
 
     // Create element for the status bar
     var bar = document.createElement('div');
     bar.className = 'editor-statusbar';
 
+    var addLabel = function(caption, el) {
+        var lbl = document.createElement('span');
+        lbl.textContent = caption;
+        lbl.className = 'mde-label';
+        bar.insertBefore(lbl, el);
+    };
 
-    // Create a new span for each item
-    for (i = 0; i < items.length; i++) {
-        // Store in temporary variable
-        var item = items[i];
+    for (var i = 0; i < status.length; i++) {
+        // Reset some values
+        var defaultValue = null;
+        var onUpdate = null;
 
-
-        // Create span element
+        // Create span elements
         var el = document.createElement('span');
-        el.className = item.className;
+        bar.appendChild(el);
 
+        // Handle if custom or not
+        if (typeof status[i] === 'object') {
+            el.className = status[i].className;
+            defaultValue = status[i].defaultValue;
+            onUpdate = status[i].onUpdate;
+        } else {
+            el.className = status[i];
+            switch(status[i]) {
+                case 'words':
+                    addLabel(status[i], el);
+                    cm.on('change', function(doc) {
+                        var el = bar.querySelector('.words');
+                        if(el != null) {
+                            el.textContent = wordCount(doc.getValue());
+                        }
+                    });
+                    el.textContent = wordCount(cm.doc.getValue());
+                    break;
+                case 'lines':
+                    addLabel(status[i], el);
+                    cm.on('change', function(doc) {
+                        var el = bar.querySelector('.lines');
+                        if(el != null) {
+                            el.textContent = doc.lineCount();
+                        }
+                    });
+                    el.textContent = cm.doc.lineCount();
+                    break;
+                case 'cursor':
+                    addLabel(status[i], el);
+                    cm.on('cursorActivity', function(doc) {
+                        var el = bar.querySelector('.cursor');
+                        if(el != null) {
+                            var pos = doc.getCursor();
+                            el.textContent = (pos.line + 1) + ':' + (pos.ch + 1);
+                        }
+                    });
+                    var pos = cm.doc.getCursor();
+                    el.textContent = (pos.line + 1) + ':' + (pos.ch + 1);
+                    break;
+                case 'autosave':
+                    defaultValue = function (cm, el) {
+                        if (options.autosave != undefined && options.autosave.enabled === true) {
+                            el.setAttribute('id', 'autosaved');
+                        }
+                    };
+                    break;
+                case 'upload-image':
+                    defaultValue = function (cm, el) {
+                        el.innerHTML = options.imageTexts.sbInit;
+                    };
+                    break;
+            }
+        }
 
         // Ensure the defaultValue is a function
-        if (typeof item.defaultValue === 'function') {
-            item.defaultValue(el);
+        if (typeof defaultValue === 'function') {
+            defaultValue(cm, el);
         }
 
-
-        // Ensure the onUpdate is a function
-        if (typeof item.onUpdate === 'function') {
+        if (typeof onUpdate === 'function') {
             // Create a closure around the span of the current action, then execute the onUpdate handler
-            this.codemirror.on('update', (function (el, item) {
-                return function () {
-                    item.onUpdate(el);
-                };
-            }(el, item)));
+            cm.on('update', function(cm) { onUpdate(cm, el); });
+            if(defaultValue == null) {
+                onUpdate(cm, el);
+            }
         }
 
-
-        // Append the item to the status bar
-        bar.appendChild(el);
     }
 
-
     // Insert the status bar into the DOM
-    var cmWrapper = this.codemirror.getWrapperElement();
+    var cmWrapper = cm.getWrapperElement();
     cmWrapper.parentNode.insertBefore(bar, cmWrapper.nextSibling);
     return bar;
 };

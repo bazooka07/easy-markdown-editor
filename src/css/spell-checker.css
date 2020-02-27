@@ -1,3 +1,4 @@
+/* ----------- CodeMirror-Spell-Checker --------- */
 .CodeMirror .cm-spell-error:not(.cm-url):not(.cm-comment):not(.cm-tag):not(.cm-word) {
     color: #f00;
     background-color: rgba(255, 251, 0, 0.5);
